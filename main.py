@@ -31,14 +31,14 @@ def get_list_of_images(folder):
     return result
 
 
-if __name__ == '__main__':
+def main():
 
     # Colorama init
     init()
 
     # Open & read the config
     config = configparser.ConfigParser()
-    config.read("config.ini", encoding='utf-8')
+    config.read(r"settings/config.ini", encoding='utf-8')
 
     in_files = get_folder_files(config["path"]["input"])
     images = get_list_of_images(config["path"]["image"])
@@ -50,13 +50,16 @@ if __name__ == '__main__':
     unq_filter_params = config["filter"]["unq_params"].split('\n')[1:]
 
     # Estimated time based on previous runs
-    with open(r"total_time.txt", 'r', encoding='utf-8') as f:
+    with open(r"settings/total_time.txt", 'r', encoding='utf-8') as f:
         time, files = map(float, f.read().split('\n'))
         estimated_per_file = round(time / files, 1)
         estimated = estimated_per_file * len(in_files)
 
     # Print info
-    estimated_print = f"{int(estimated / 60)}m {round(estimated % 60)}s"
+    estimated_print = (
+        f"{int(estimated / 60)}m {round(estimated % 60)}s "
+        f"({len(in_files)} files | {estimated_per_file}s per file)"
+    )
     print(
         "Paths:\n\t"
         f" INPUT | {config['path']['input']}\n\t"
@@ -69,7 +72,7 @@ if __name__ == '__main__':
         f" IMAGE | {image_duration} {image_size}\n\t"
         "\nUnique filters:\n",
         *[f" {param[:param.find('=')]} | {param[param.find('=')+1:]}\n" for param in unq_filter_params],
-        Back.YELLOW + f"\nEstimated time: {estimated_print} ({estimated_per_file}s per file)" + Style.RESET_ALL,
+        Back.YELLOW + f"\nEstimated time: {estimated_print} " + Style.RESET_ALL,
         "\n"
     )
 
@@ -82,12 +85,17 @@ if __name__ == '__main__':
 
         # Proceed the video
         clip: VideoFileClip = VideoFileClip(filename, audio=False)  # Get the clip
+        if crop_end > clip.duration:
+            crop_end = clip.duration - crop_start
         clip = clip.subclip(crop_start, crop_end)  # Crop
         clip = vfx.fadein(clip, duration=fadein_duration)  # Fade in
         clip = vfx.mirror_x(clip)  # Vertical flip
 
         # Add noise
-        audio: AudioFileClip = AudioFileClip(choice(sounds)).subclip(crop_start, crop_end)  # Get audio and crop
+        audio: AudioFileClip = AudioFileClip(choice(sounds))
+        # if crop_end > audio.duration:
+        #     crop_end = audio.duration - crop_start
+        audio = audio.subclip(crop_start, crop_end)  # Get audio and crop
         clip = clip.set_audio(audio)
 
         # Compose clip with image
@@ -114,8 +122,19 @@ if __name__ == '__main__':
     elapsed = round(default_timer() - timer_start, 1)
     print(f"\n     Estimated time: {estimated}s")
     print(f"Actual elapsed time: {elapsed}s")
-    out = input("\nEnter anything to exit...")
-    with open(r"total_time.txt", 'w', encoding='utf-8') as f:
+    input("\nEnter anything to exit...")
+    with open(r"settings/total_time.txt", 'w', encoding='utf-8') as f:
         time += elapsed
         files += len(in_files)
         f.write(f"{time}\n{files}")
+
+    return 0
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except Exception as e:
+        print('\n' + Back.RED + repr(e) + Style.RESET_ALL)
+        input("\nEnter anything to exit and get the traceback...")
+        raise e
