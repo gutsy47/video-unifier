@@ -1,0 +1,6 @@
+/venv/
+/.idea/
+*.pyc
+/unversioned/
+/settings/
+/data/
